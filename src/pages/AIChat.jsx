@@ -97,7 +97,11 @@ export default function AIChat({ user }) {
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
       let parsed = null
-      try { parsed = JSON.parse(text) } catch {}
+      try {
+        // Strip markdown code blocks if present
+        const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+        parsed = JSON.parse(clean)
+      } catch {}
 
       if (parsed?.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: parsed.error }])
