@@ -1,25 +1,44 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { db } from '../firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { ArrowLeft } from 'lucide-react'
 
-const EXPENSE_CATS = ['飲食', '交通', '購物', '娛樂', '醫療', '住房', '教育', '其他支出']
-const INCOME_CATS = ['薪資', '獎金', '副業', '其他收入']
-const CATEGORY_ICONS = {
-  飲食: '🍽️', 交通: '🚗', 購物: '🛍️', 娛樂: '🎬',
-  醫療: '💊', 住房: '🏠', 教育: '📚', 其他支出: '💸',
-  薪資: '💼', 獎金: '🎁', 副業: '💻', 其他收入: '💰',
-}
+const DEFAULT_EXPENSE = [
+  { name: '飲食', emoji: '🍽️' }, { name: '交通', emoji: '🚗' },
+  { name: '購物', emoji: '🛍️' }, { name: '娛樂', emoji: '🎬' },
+  { name: '醫療', emoji: '💊' }, { name: '住房', emoji: '🏠' },
+  { name: '教育', emoji: '📚' }, { name: '其他支出', emoji: '💸' },
+]
+const DEFAULT_INCOME = [
+  { name: '薪資', emoji: '💼' }, { name: '獎金', emoji: '🎁' },
+  { name: '副業', emoji: '💻' }, { name: '其他收入', emoji: '💰' },
+]
 
 export default function AddTransaction({ user, setTab }) {
   const [type, setType] = useState('expense')
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('MYR')
   const [category, setCategory] = useState('')
+  const [categoryEmoji, setCategoryEmoji] = useState('')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
+  const [customCats, setCustomCats] = useState([])
 
-  const cats = type === 'expense' ? EXPENSE_CATS : INCOME_CATS
+  useEffect(() => {
+    const q = query(collection(db, 'categories'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => {
+      setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+  }, [])
+
+  const defaultCats = type === 'expense' ? DEFAULT_EXPENSE : DEFAULT_INCOME
+  const customFiltered = customCats.filter(c => c.type === type)
+  const allCats = [...defaultCats, ...customFiltered]
+
+  function selectCategory(name, emoji) {
+    setCategory(name)
+    setCategoryEmoji(emoji)
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -30,6 +49,7 @@ export default function AddTransaction({ user, setTab }) {
       amount: parseFloat(amount),
       currency,
       category,
+      categoryEmoji,
       note,
       userId: user.uid,
       userName: user.displayName || user.email,
@@ -52,7 +72,7 @@ export default function AddTransaction({ user, setTab }) {
         {/* Type toggle */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, background: '#1e293b', borderRadius: 10, padding: 4 }}>
           {['expense', 'income'].map(t => (
-            <button key={t} type="button" onClick={() => { setType(t); setCategory('') }}
+            <button key={t} type="button" onClick={() => { setType(t); setCategory(''); setCategoryEmoji('') }}
               style={{ padding: '10px', borderRadius: 8, fontWeight: 600, fontSize: 15,
                 background: type === t ? (t === 'expense' ? '#ef4444' : '#10b981') : 'transparent',
                 color: type === t ? 'white' : '#94a3b8' }}>
@@ -74,15 +94,15 @@ export default function AddTransaction({ user, setTab }) {
         <div>
           <label style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8, display: 'block' }}>分類</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-            {cats.map(cat => (
-              <button key={cat} type="button" onClick={() => setCategory(cat)}
+            {allCats.map(cat => (
+              <button key={cat.name} type="button" onClick={() => selectCategory(cat.name, cat.emoji)}
                 style={{ padding: '10px 4px', borderRadius: 10, fontSize: 12, fontWeight: 500,
-                  background: category === cat ? '#1d4ed8' : '#1e293b',
-                  color: category === cat ? 'white' : '#cbd5e1',
-                  border: category === cat ? '2px solid #3b82f6' : '2px solid transparent',
+                  background: category === cat.name ? '#1d4ed8' : '#1e293b',
+                  color: category === cat.name ? 'white' : '#cbd5e1',
+                  border: category === cat.name ? '2px solid #3b82f6' : '2px solid transparent',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 20 }}>{CATEGORY_ICONS[cat]}</span>
-                {cat}
+                <span style={{ fontSize: 20 }}>{cat.emoji}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>{cat.name}</span>
               </button>
             ))}
           </div>

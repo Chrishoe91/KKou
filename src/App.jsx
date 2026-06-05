@@ -7,6 +7,7 @@ import AddTransaction from './pages/AddTransaction'
 import AIChat from './pages/AIChat'
 import Stats from './pages/Stats'
 import Settings from './pages/Settings'
+import Categories from './pages/Categories'
 import TabBar from './components/TabBar'
 
 export default function App() {
@@ -36,8 +37,9 @@ export default function App() {
       {tab === 'add' && <AddTransaction user={user} setTab={setTab} />}
       {tab === 'ai' && <AIChat user={user} />}
       {tab === 'stats' && <Stats user={user} />}
-      {tab === 'settings' && <Settings user={user} />}
-      <TabBar tab={tab} setTab={setTab} />
+      {tab === 'settings' && <Settings user={user} setTab={setTab} />}
+      {tab === 'categories' && <Categories setTab={setTab} />}
+      {tab !== 'categories' && <TabBar tab={tab} setTab={setTab} />}
     </div>
   )
 }

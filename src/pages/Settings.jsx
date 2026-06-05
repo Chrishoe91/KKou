@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { auth } from '../firebase'
 import { signOut, updateProfile } from 'firebase/auth'
-import { Key, LogOut, User } from 'lucide-react'
+import { Key, LogOut, User, Tag, ChevronRight } from 'lucide-react'
 
-export default function Settings({ user }) {
+export default function Settings({ user, setTab }) {
   const [apiKey, setApiKey] = useState(localStorage.getItem('claude_api_key') || '')
   const [saved, setSaved] = useState(false)
   const [displayName, setDisplayName] = useState(user.displayName || '')
@@ -58,6 +58,14 @@ export default function Settings({ user }) {
         </div>
         <p style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>Key 只存在你的手機裡，不會上傳到伺服器</p>
       </div>
+
+      {/* Categories */}
+      <button onClick={() => setTab('categories')}
+        style={{ width: '100%', background: '#1e293b', color: '#f1f5f9', padding: '14px 16px', borderRadius: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <Tag size={18} color="#94a3b8" />
+        <span style={{ flex: 1, textAlign: 'left' }}>分類管理</span>
+        <ChevronRight size={18} color="#94a3b8" />
+      </button>
 
       {/* Share info */}
       <div className="card" style={{ marginBottom: 16 }}>
