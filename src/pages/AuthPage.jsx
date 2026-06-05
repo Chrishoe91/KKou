@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { auth } from '../firebase'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth'
+
+const ALLOWED_EMAILS = [
+  'christopher.hoe91@gmail.com',
+  'francechang168@gmail.com',
+  'test@kkou.app',
+]
 
 export default function AuthPage() {
   const [mode, setMode] = useState('login')
@@ -14,6 +20,11 @@ export default function AuthPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+      setError('此 Email 沒有使用權限')
+      setLoading(false)
+      return
+    }
     try {
       if (mode === 'register') {
         const cred = await createUserWithEmailAndPassword(auth, email, password)
