@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { db } from '../firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { Send, Bot } from 'lucide-react'
+import { Send, Bot, Sparkles } from 'lucide-react'
 
 const SYSTEM_PROMPT = `你是一個記帳助手。用戶會用自然語言描述消費，你需要解析並回傳 JSON。
 支援貨幣：MYR（馬幣，預設）、TWD（台幣）
@@ -20,35 +20,30 @@ const SYSTEM_PROMPT = `你是一個記帳助手。用戶會用自然語言描述
 
 export default function AIChat({ user }) {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: `你好 ${user.displayName || ''}！\n\n直接輸入消費就可以記帳，例如：\n• 午餐 RM12\n• 搭捷運 NT$30\n• 購物 RM85.5` }
+    { role: 'assistant', content: `你好 ${user.displayName || ''}！\n\n直接輸入消費就能記帳：\n• 午餐 RM12\n• 搭捷運 NT$30\n• 購物 RM85.5` }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef()
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   async function send(e) {
     e.preventDefault()
     if (!input.trim() || loading) return
-
     const apiKey = localStorage.getItem('claude_api_key')
     if (!apiKey) {
       setMessages(prev => [...prev,
         { role: 'user', content: input },
-        { role: 'assistant', content: '⚠️ 請先到「設定」頁填入 Claude API Key 才能使用 AI 功能。' }
+        { role: 'assistant', content: '⚠️ 請先到「設定」頁填入 Claude API Key。' }
       ])
       setInput('')
       return
     }
-
     const userMsg = input
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: userMsg }])
     setLoading(true)
-
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -58,81 +53,74 @@ export default function AIChat({ user }) {
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true',
         },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 256,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: userMsg }]
-        })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 256, system: SYSTEM_PROMPT, messages: [{ role: 'user', content: userMsg }] })
       })
-
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
-
       let parsed = null
       try { parsed = JSON.parse(text) } catch {}
-
       if (parsed?.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: parsed.error }])
       } else if (parsed?.confirmed) {
         await addDoc(collection(db, 'transactions'), {
-          type: parsed.type,
-          amount: parsed.amount,
-          currency: parsed.currency,
-          category: parsed.category,
-          note: parsed.note || userMsg,
-          userId: user.uid,
-          userName: user.displayName || user.email,
+          type: parsed.type, amount: parsed.amount, currency: parsed.currency,
+          category: parsed.category, note: parsed.note || userMsg,
+          userId: user.uid, userName: user.displayName || user.email,
           createdAt: serverTimestamp(),
         })
-
-        const curr = parsed.currency === 'TWD' ? `NT$${parsed.amount}` : `RM${parsed.amount}`
-        const emoji = parsed.type === 'expense' ? '💸' : '💰'
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `${emoji} 已記錄！\n\n分類：${parsed.category}\n金額：${curr}\n備註：${parsed.note}`
-        }])
+        const curr = parsed.currency === 'TWD' ? `NT$${parsed.amount}` : `RM ${parsed.amount}`
+        setMessages(prev => [...prev, { role: 'assistant', content: `✅ 已記錄！\n\n分類：${parsed.category}\n金額：${curr}\n備註：${parsed.note}` }])
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: text || '無法處理，請重試。' }])
       }
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: '連線錯誤，請檢查 API Key 是否正確。' }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: '連線錯誤，請檢查 API Key。' }])
     }
     setLoading(false)
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', paddingTop: 'env(safe-area-inset-top)', background: '#0f172a' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f5f7fa' }}>
       {/* Header */}
-      <div style={{ padding: '16px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Bot size={20} color="white" />
+      <div style={{ background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)', padding: '20px 20px 20px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Sparkles size={20} color="white" />
         </div>
         <div>
-          <div style={{ fontWeight: 600, color: '#f1f5f9' }}>AI 記帳</div>
-          <div style={{ fontSize: 12, color: '#10b981' }}>直接說就能記帳</div>
+          <p style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>AI 智能記帳</p>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>直接說就能記帳</p>
         </div>
       </div>
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
+            {m.role === 'assistant' && (
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0070ba', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginBottom: 2 }}>
+                <Sparkles size={14} color="white" />
+              </div>
+            )}
             <div style={{
-              maxWidth: '80%', padding: '10px 14px', borderRadius: 16,
-              background: m.role === 'user' ? '#10b981' : '#1e293b',
-              color: '#f1f5f9', fontSize: 15, lineHeight: 1.5,
-              borderBottomRightRadius: m.role === 'user' ? 4 : 16,
-              borderBottomLeftRadius: m.role === 'assistant' ? 4 : 16,
-              whiteSpace: 'pre-wrap'
+              maxWidth: '78%', padding: '11px 15px', borderRadius: 18,
+              background: m.role === 'user' ? 'linear-gradient(135deg, #003087, #0070ba)' : 'white',
+              color: m.role === 'user' ? 'white' : '#2c2e2f',
+              fontSize: 15, lineHeight: 1.5,
+              borderBottomRightRadius: m.role === 'user' ? 4 : 18,
+              borderBottomLeftRadius: m.role === 'assistant' ? 4 : 18,
+              whiteSpace: 'pre-wrap',
+              boxShadow: m.role === 'assistant' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none'
             }}>
               {m.content}
             </div>
           </div>
         ))}
         {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <div style={{ background: '#1e293b', padding: '10px 14px', borderRadius: 16, borderBottomLeftRadius: 4, color: '#94a3b8' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0070ba', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Sparkles size={14} color="white" />
+            </div>
+            <div style={{ background: 'white', padding: '11px 16px', borderRadius: 18, borderBottomLeftRadius: 4, color: '#a0aab0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               思考中...
             </div>
           </div>
@@ -141,16 +129,10 @@ export default function AIChat({ user }) {
       </div>
 
       {/* Input */}
-      <form onSubmit={send} style={{ padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)', borderTop: '1px solid #1e293b', display: 'flex', gap: 8 }}>
-        <input
-          className="input-field"
-          placeholder="午餐 RM12 ..."
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          style={{ flex: 1 }}
-        />
+      <form onSubmit={send} style={{ padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)', borderTop: '1px solid #e8ecf0', background: 'white', display: 'flex', gap: 10 }}>
+        <input className="input-field" placeholder="午餐 RM12 ..." value={input} onChange={e => setInput(e.target.value)} style={{ flex: 1 }} />
         <button type="submit" disabled={loading || !input.trim()}
-          style={{ background: '#10b981', borderRadius: 8, padding: '0 16px', opacity: (!input.trim() || loading) ? 0.5 : 1 }}>
+          style={{ background: 'linear-gradient(135deg, #003087, #0070ba)', borderRadius: '50%', width: 46, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!input.trim() || loading) ? 0.5 : 1, flexShrink: 0 }}>
           <Send size={18} color="white" />
         </button>
       </form>

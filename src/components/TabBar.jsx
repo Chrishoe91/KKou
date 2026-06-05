@@ -15,10 +15,10 @@ export default function TabBar({ tab, setTab }) {
         <button key={id} className={`tab-item${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>
           {id === 'add' ? (
             <div style={{
-              background: tab === 'add' ? '#059669' : '#10b981',
-              borderRadius: '50%', width: 44, height: 44,
+              background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)',
+              borderRadius: '50%', width: 46, height: 46,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginTop: -20, boxShadow: '0 4px 12px rgba(16,185,129,0.4)'
+              marginTop: -22, boxShadow: '0 4px 14px rgba(0,112,186,0.45)'
             }}>
               <Icon size={22} color="white" />
             </div>

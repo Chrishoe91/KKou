@@ -19,12 +19,11 @@ export default function AuthPage() {
   async function submit(e) {
     e.preventDefault()
     setError('')
-    setLoading(true)
     if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
       setError('此 Email 沒有使用權限')
-      setLoading(false)
       return
     }
+    setLoading(true)
     try {
       if (mode === 'register') {
         const cred = await createUserWithEmailAndPassword(auth, email, password)
@@ -45,31 +44,54 @@ export default function AuthPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ marginBottom: 32, textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>💰</div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, color: '#f1f5f9' }}>扣扣</h1>
-        <p style={{ color: '#94a3b8', marginTop: 4 }}>家庭記帳本</p>
+    <div style={{ minHeight: '100vh', background: '#f5f7fa', display: 'flex', flexDirection: 'column' }}>
+      {/* Blue header */}
+      <div style={{ background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)', padding: '48px 24px 64px', textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>💰</div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', letterSpacing: '-0.5px' }}>扣扣</h1>
+        <p style={{ color: 'rgba(255,255,255,0.75)', marginTop: 6, fontSize: 14 }}>家庭記帳本</p>
       </div>
 
-      <form onSubmit={submit} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {mode === 'register' && (
-          <input className="input-field" placeholder="你的名字（如：Chris）" value={name} onChange={e => setName(e.target.value)} required />
-        )}
-        <input className="input-field" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-        <input className="input-field" type="password" placeholder="密碼（至少 6 位）" value={password} onChange={e => setPassword(e.target.value)} required />
+      {/* Form card */}
+      <div style={{ margin: '-28px 20px 0', background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', flex: 1 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#2c2e2f', marginBottom: 20 }}>
+          {mode === 'login' ? '登入帳號' : '建立帳號'}
+        </h2>
 
-        {error && <p style={{ color: '#ef4444', fontSize: 14, textAlign: 'center' }}>{error}</p>}
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {mode === 'register' && (
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 6, display: 'block' }}>顯示名稱</label>
+              <input className="input-field" placeholder="你的名字（如：Chris）" value={name} onChange={e => setName(e.target.value)} required />
+            </div>
+          )}
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 6, display: 'block' }}>Email</label>
+            <input className="input-field" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 6, display: 'block' }}>密碼</label>
+            <input className="input-field" type="password" placeholder="至少 6 個字元" value={password} onChange={e => setPassword(e.target.value)} required />
+          </div>
 
-        <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? '處理中...' : mode === 'login' ? '登入' : '建立帳號'}
-        </button>
+          {error && (
+            <div style={{ background: '#fff0f0', border: '1px solid #ffcdd2', borderRadius: 8, padding: '10px 14px', color: '#d0021b', fontSize: 14 }}>
+              {error}
+            </div>
+          )}
 
-        <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}
-          style={{ background: 'none', color: '#94a3b8', fontSize: 14, padding: 8 }}>
-          {mode === 'login' ? '還沒有帳號？立即註冊' : '已有帳號？登入'}
-        </button>
-      </form>
+          <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: 4 }}>
+            {loading ? '處理中...' : mode === 'login' ? '登入' : '建立帳號'}
+          </button>
+
+          <div style={{ textAlign: 'center', borderTop: '1px solid #f0f0f0', paddingTop: 16, marginTop: 4 }}>
+            <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}
+              style={{ background: 'none', color: '#0070ba', fontSize: 14, fontWeight: 600, padding: 8 }}>
+              {mode === 'login' ? '還沒有帳號？立即註冊' : '已有帳號？登入'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
