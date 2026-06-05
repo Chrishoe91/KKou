@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(chmod +x /Users/hoezihanchristopher/Documents/扣扣/.claude/start-dev.sh)",
+      "Bash(sudo ln -sf /Users/hoezihanchristopher/.nvm/versions/node/v20.20.2/bin/node /usr/local/bin/node)",
+      "Bash(sudo ln -sf /Users/hoezihanchristopher/.nvm/versions/node/v20.20.2/bin/npm /usr/local/bin/npm)",
+      "Bash(sudo ln -sf /Users/hoezihanchristopher/.nvm/versions/node/v20.20.2/bin/vite /usr/local/bin/vite)",
+      "Read(//usr/local/bin/**)",
+      "Bash(/usr/local/bin/node --version)",
+      "Bash(ls /usr/local/ 2>/dev/null || echo \"no /usr/local\")"
+    ]
+  }
+}
