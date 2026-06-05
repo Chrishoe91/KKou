@@ -8,7 +8,8 @@
       "Bash(sudo ln -sf /Users/hoezihanchristopher/.nvm/versions/node/v20.20.2/bin/vite /usr/local/bin/vite)",
       "Read(//usr/local/bin/**)",
       "Bash(/usr/local/bin/node --version)",
-      "Bash(ls /usr/local/ 2>/dev/null || echo \"no /usr/local\")"
+      "Bash(ls /usr/local/ 2>/dev/null || echo \"no /usr/local\")",
+      "WebFetch(domain:cjpgpwlwi8qs.jp.larksuite.com)"
     ]
   }
 }

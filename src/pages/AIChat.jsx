@@ -1,32 +1,71 @@
 import { useState, useRef, useEffect } from 'react'
 import { db } from '../firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { Send, Bot, Sparkles } from 'lucide-react'
+import { collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { Send, Sparkles } from 'lucide-react'
 
 const SYSTEM_PROMPT = `你是一個記帳助手。用戶會用自然語言描述消費，你需要解析並回傳 JSON。
 支援貨幣：MYR（馬幣，預設）、TWD（台幣）
 支出分類：飲食、交通、購物、娛樂、醫療、住房、教育、其他支出
 收入分類：薪資、獎金、副業、其他收入
 
-回傳格式（只回傳 JSON，不要其他文字）：
+規則：
+- 如果你很確定分類，直接回傳 confirmed:true
+- 如果不確定分類（例如商家名稱不明確），回傳 confirmed:false 並列出 2-4 個可能的分類
+
+確定時的格式：
 {"type":"expense|income","amount":數字,"currency":"MYR|TWD","category":"分類","note":"原始描述","confirmed":true}
 
-範例：
-- "午餐 rm10" → {"type":"expense","amount":10,"currency":"MYR","category":"飲食","note":"午餐","confirmed":true}
-- "搭捷運 NT$30" → {"type":"expense","amount":30,"currency":"TWD","category":"交通","note":"搭捷運","confirmed":true}
-- "薪水 rm3000" → {"type":"income","amount":3000,"currency":"MYR","category":"薪資","note":"薪水","confirmed":true}
+不確定時的格式：
+{"type":"expense|income","amount":數字,"currency":"MYR|TWD","note":"原始描述","confirmed":false,"suggestions":["分類1","分類2","分類3"]}
 
-如果無法解析，回傳：{"error":"無法理解，請重新描述"}`
+如果完全無法解析：{"error":"無法理解，請重新描述"}`
+
+const CATEGORY_EMOJIS = {
+  飲食:'🍽️', 交通:'🚗', 購物:'🛍️', 娛樂:'🎬', 醫療:'💊',
+  住房:'🏠', 教育:'📚', 其他支出:'💸', 薪資:'💼', 獎金:'🎁', 副業:'💻', 其他收入:'💰',
+}
 
 export default function AIChat({ user }) {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: `你好 ${user.displayName || ''}！\n\n直接輸入消費就能記帳：\n• 午餐 RM12\n• 搭捷運 NT$30\n• 購物 RM85.5` }
+    { role: 'assistant', content: `你好 ${user.displayName || ''}！\n\n直接輸入消費就能記帳：\n• 午餐 RM12\n• 搭捷運 NT$30\n• 海底撈 RM120` }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pendingTx, setPendingTx] = useState(null)
+  const [customCats, setCustomCats] = useState([])
   const bottomRef = useRef()
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'categories'), snap => {
+      setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+  }, [])
+
+  async function saveTransaction(tx) {
+    await addDoc(collection(db, 'transactions'), {
+      type: tx.type, amount: tx.amount, currency: tx.currency,
+      category: tx.category,
+      categoryEmoji: CATEGORY_EMOJIS[tx.category] || customCats.find(c => c.name === tx.category)?.emoji || '💸',
+      note: tx.note,
+      userId: user.uid, userName: user.displayName || user.email,
+      createdAt: serverTimestamp(),
+    })
+    const curr = tx.currency === 'TWD' ? `NT$${tx.amount}` : `RM ${tx.amount}`
+    const emoji = tx.type === 'expense' ? '💸' : '💰'
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `${emoji} 已記錄！\n\n${CATEGORY_EMOJIS[tx.category] || ''} 分類：${tx.category}\n💵 金額：${curr}\n📝 備註：${tx.note}`
+    }])
+    setPendingTx(null)
+  }
+
+  async function selectCategory(category) {
+    if (!pendingTx) return
+    setMessages(prev => [...prev, { role: 'user', content: category }])
+    await saveTransaction({ ...pendingTx, category })
+  }
 
   async function send(e) {
     e.preventDefault()
@@ -59,17 +98,21 @@ export default function AIChat({ user }) {
       const text = data.content?.[0]?.text || ''
       let parsed = null
       try { parsed = JSON.parse(text) } catch {}
+
       if (parsed?.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: parsed.error }])
-      } else if (parsed?.confirmed) {
-        await addDoc(collection(db, 'transactions'), {
-          type: parsed.type, amount: parsed.amount, currency: parsed.currency,
-          category: parsed.category, note: parsed.note || userMsg,
-          userId: user.uid, userName: user.displayName || user.email,
-          createdAt: serverTimestamp(),
-        })
+      } else if (parsed?.confirmed === true) {
+        await saveTransaction(parsed)
+      } else if (parsed?.confirmed === false && parsed?.suggestions) {
+        // Ask for category confirmation
+        setPendingTx(parsed)
         const curr = parsed.currency === 'TWD' ? `NT$${parsed.amount}` : `RM ${parsed.amount}`
-        setMessages(prev => [...prev, { role: 'assistant', content: `✅ 已記錄！\n\n分類：${parsed.category}\n金額：${curr}\n備註：${parsed.note}` }])
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `「${parsed.note}」${curr}（支出）\n歸到哪個分類？`,
+          suggestions: parsed.suggestions,
+          isPending: true
+        }])
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: text || '無法處理，請重試。' }])
       }
@@ -79,10 +122,14 @@ export default function AIChat({ user }) {
     setLoading(false)
   }
 
+  const allCatNames = [
+    '飲食','交通','購物','娛樂','醫療','住房','教育','其他支出',
+    ...customCats.filter(c => c.type === 'expense').map(c => c.name)
+  ]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f5f7fa' }}>
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)', padding: '20px 20px 20px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)', padding: '20px 20px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Sparkles size={20} color="white" />
         </div>
@@ -92,32 +139,46 @@ export default function AIChat({ user }) {
         </div>
       </div>
 
-      {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
-            {m.role === 'assistant' && (
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0070ba', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginBottom: 2 }}>
-                <Sparkles size={14} color="white" />
+          <div key={i}>
+            <div style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
+              {m.role === 'assistant' && (
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0070ba', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginBottom: 2 }}>
+                  <Sparkles size={14} color="white" />
+                </div>
+              )}
+              <div style={{
+                maxWidth: '78%', padding: '11px 15px', borderRadius: 18,
+                background: m.role === 'user' ? 'linear-gradient(135deg, #003087, #0070ba)' : 'white',
+                color: m.role === 'user' ? 'white' : '#2c2e2f',
+                fontSize: 15, lineHeight: 1.5,
+                borderBottomRightRadius: m.role === 'user' ? 4 : 18,
+                borderBottomLeftRadius: m.role === 'assistant' ? 4 : 18,
+                whiteSpace: 'pre-wrap',
+                boxShadow: m.role === 'assistant' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none'
+              }}>
+                {m.content}
+              </div>
+            </div>
+
+            {/* Category suggestion chips */}
+            {m.isPending && m.suggestions && pendingTx && (
+              <div style={{ marginLeft: 36, marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {(m.suggestions.length > 0 ? m.suggestions : allCatNames.slice(0, 6)).map(cat => (
+                  <button key={cat} onClick={() => selectCategory(cat)}
+                    style={{ background: 'white', border: '1.5px solid #0070ba', color: '#0070ba', padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                    {CATEGORY_EMOJIS[cat] || customCats.find(c => c.name === cat)?.emoji || ''} {cat}
+                  </button>
+                ))}
               </div>
             )}
-            <div style={{
-              maxWidth: '78%', padding: '11px 15px', borderRadius: 18,
-              background: m.role === 'user' ? 'linear-gradient(135deg, #003087, #0070ba)' : 'white',
-              color: m.role === 'user' ? 'white' : '#2c2e2f',
-              fontSize: 15, lineHeight: 1.5,
-              borderBottomRightRadius: m.role === 'user' ? 4 : 18,
-              borderBottomLeftRadius: m.role === 'assistant' ? 4 : 18,
-              whiteSpace: 'pre-wrap',
-              boxShadow: m.role === 'assistant' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none'
-            }}>
-              {m.content}
-            </div>
           </div>
         ))}
+
         {loading && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0070ba', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0070ba', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Sparkles size={14} color="white" />
             </div>
             <div style={{ background: 'white', padding: '11px 16px', borderRadius: 18, borderBottomLeftRadius: 4, color: '#a0aab0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -128,9 +189,8 @@ export default function AIChat({ user }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <form onSubmit={send} style={{ padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)', borderTop: '1px solid #e8ecf0', background: 'white', display: 'flex', gap: 10 }}>
-        <input className="input-field" placeholder="午餐 RM12 ..." value={input} onChange={e => setInput(e.target.value)} style={{ flex: 1 }} />
+        <input className="input-field" placeholder="午餐 RM12 / 海底撈 120 ..." value={input} onChange={e => setInput(e.target.value)} style={{ flex: 1 }} />
         <button type="submit" disabled={loading || !input.trim()}
           style={{ background: 'linear-gradient(135deg, #003087, #0070ba)', borderRadius: '50%', width: 46, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!input.trim() || loading) ? 0.5 : 1, flexShrink: 0 }}>
           <Send size={18} color="white" />
