@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>扣扣 - 家庭記帳 App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: #f5f7fa;
+      color: #2c2e2f;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #003087 0%, #0070ba 100%);
+      padding: 60px 24px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      top: -100px; right: -80px;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      bottom: -60px; left: -60px;
+    }
+    .hero-icon {
+      font-size: 72px;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -1px;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+    .hero-btn {
+      display: inline-block;
+      background: white;
+      color: #0070ba;
+      font-size: 17px;
+      font-weight: 800;
+      padding: 16px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .hero-btn:active { transform: scale(0.97); }
+    .hero-subtitle {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 14px;
+    }
+
+    /* Section */
+    .section {
+      padding: 48px 24px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .section-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #2c2e2f;
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+    .section-sub {
+      font-size: 15px;
+      color: #6c7378;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    /* Features */
+    .features {
+      background: white;
+      padding: 48px 24px;
+    }
+    .features-inner { max-width: 640px; margin: 0 auto; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 400px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+    .feature-card {
+      background: #f5f7fa;
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #2c2e2f;
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 13px;
+      color: #6c7378;
+      line-height: 1.5;
+    }
+
+    /* Steps */
+    .steps { background: #f5f7fa; }
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+    .step:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #003087, #0070ba);
+      color: white;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-content h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #2c2e2f;
+      margin-bottom: 4px;
+    }
+    .step-content p {
+      font-size: 14px;
+      color: #6c7378;
+      line-height: 1.6;
+    }
+    .step-content .tip {
+      background: #e8f0fe;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #0070ba;
+      font-weight: 600;
+    }
+
+    /* iPhone mockup steps */
+    .iphone-steps {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-top: 20px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .iphone-step {
+      flex-shrink: 0;
+      width: 140px;
+      text-align: center;
+    }
+    .iphone-screen {
+      width: 140px;
+      height: 240px;
+      background: #1a1a2e;
+      border-radius: 20px;
+      border: 3px solid #2c2e2f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .iphone-screen .screen-content {
+      font-size: 11px;
+      color: rgba(255,255,255,0.9);
+      text-align: center;
+      line-height: 1.5;
+    }
+    .iphone-step p {
+      font-size: 12px;
+      color: #6c7378;
+      font-weight: 600;
+    }
+
+    /* Safari bar mockup */
+    .safari-bar {
+      background: #1c1c1e;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 9px;
+      color: #aaa;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+    .safari-url {
+      background: #2c2c2e;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 9px;
+      color: #0070ba;
+      text-align: center;
+    }
+    .share-icon {
+      font-size: 20px;
+      margin: 8px 0;
+    }
+    .add-btn {
+      background: #0070ba;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    /* Link box */
+    .link-box {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+    .link-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #003087, #0070ba);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .link-text { flex: 1; }
+    .link-text h3 { font-size: 15px; font-weight: 700; color: #2c2e2f; margin-bottom: 3px; }
+    .link-text a { font-size: 13px; color: #0070ba; font-weight: 600; text-decoration: none; word-break: break-all; }
+
+    /* CTA */
+    .cta {
+      background: linear-gradient(135deg, #003087 0%, #0070ba 100%);
+      padding: 48px 24px;
+      text-align: center;
+    }
+    .cta h2 { font-size: 26px; font-weight: 800; color: white; margin-bottom: 12px; }
+    .cta p { font-size: 15px; color: rgba(255,255,255,0.75); margin-bottom: 28px; }
+    .cta-btn {
+      display: inline-block;
+      background: white;
+      color: #0070ba;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 16px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    }
+
+    /* Footer */
+    footer {
+      background: #2c2e2f;
+      padding: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: #6c7378;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <div class="hero">
+    <span class="badge">家庭共用記帳</span>
+    <span class="hero-icon">💰</span>
+    <h1>扣扣</h1>
+    <p>夫妻共用帳本<br/>AI 說話就能記帳，隨時知道花了多少</p>
+    <a href="https://chrishoe91.github.io/KKou/" class="hero-btn">📱 立即開啟 App</a>
+    <p class="hero-subtitle">免安裝・免費使用・支援 iPhone</p>
+  </div>
+
+  <!-- Features -->
+  <div class="features">
+    <div class="features-inner">
+      <p class="section-title" style="text-align:center; margin-bottom:6px">主要功能</p>
+      <p class="section-sub" style="text-align:center; margin-bottom:28px">簡單好用，專為家庭設計</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">🤖</span>
+          <h3>AI 語音記帳</h3>
+          <p>直接輸入「午餐 RM12」，AI 自動分類記錄，不確定時會問你</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">👫</span>
+          <h3>夫妻共用帳本</h3>
+          <p>兩個人各自記帳，帳目即時同步，清楚看到誰記了哪一筆</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🇲🇾🇹🇼</span>
+          <h3>馬幣 + 台幣</h3>
+          <p>同時記錄 RM 和 NT$，統計分幣別顯示，完全不混亂</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📌</span>
+          <h3>固定開銷</h3>
+          <p>設定每月保險、電費、網費，月初一鍵全部記錄，省時省力</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📊</span>
+          <h3>分類統計</h3>
+          <p>餐飲、交通、購物各類支出一目了然，月份可以自由切換</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">✏️</span>
+          <h3>隨時編輯</h3>
+          <p>記錯了？點記錄可以修改金額、分類，或直接刪除</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to open -->
+  <div class="section steps">
+    <h2 class="section-title">📲 如何安裝到 iPhone 主畫面</h2>
+    <p class="section-sub">只需 3 步驟，就像真正的 App 一樣使用</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h3>用 Safari 打開 App 連結</h3>
+        <p>點擊下方連結，或直接在 Safari 輸入網址</p>
+        <div class="tip">⚠️ 必須用 Safari，Chrome 不支援加入主畫面</div>
+        <div style="margin-top: 12px; background: white; border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <span style="font-size: 24px;">🔗</span>
+          <a href="https://chrishoe91.github.io/KKou/" style="color: #0070ba; font-weight: 700; font-size: 14px; text-decoration: none; word-break: break-all;">chrishoe91.github.io/KKou/</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h3>點底部「分享」按鈕</h3>
+        <p>Safari 底部中間有一個方框加箭頭的圖示 <strong>⬆️</strong>，點它</p>
+        <div style="margin-top: 12px; background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <div style="font-size: 48px; margin-bottom: 8px;">⬆️</div>
+          <p style="font-size: 13px; color: #6c7378;">Safari 底部中間的按鈕</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h3>點「加入主畫面」</h3>
+        <p>在分享選單往下滑，找到「<strong>加入主畫面</strong>」，點它</p>
+        <div style="margin-top: 12px; background: white; border-radius: 16px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: #f5f7fa; border-radius: 10px; margin-bottom: 8px;">
+            <span style="font-size: 24px;">➕</span>
+            <div>
+              <p style="font-weight: 700; color: #2c2e2f; font-size: 15px;">加入主畫面</p>
+              <p style="font-size: 12px; color: #6c7378;">Add to Home Screen</p>
+            </div>
+          </div>
+          <p style="font-size: 12px; color: #6c7378;">然後點右上角「新增」確認</p>
+        </div>
+        <div class="tip">✅ 完成！桌面會出現扣扣的 icon，打開就是全螢幕 App</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to use -->
+  <div class="features" style="background: white;">
+    <div class="features-inner">
+      <h2 class="section-title" style="text-align:center; margin-bottom:6px">💡 怎麼開始使用</h2>
+      <p class="section-sub" style="text-align:center; margin-bottom:28px">第一次使用請先註冊帳號</p>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: #f5f7fa; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start;">
+          <span style="font-size: 28px; flex-shrink: 0;">📧</span>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #2c2e2f; margin-bottom: 4px;">第一步：註冊帳號</h3>
+            <p style="font-size: 13px; color: #6c7378; line-height: 1.6;">打開 App → 點「還沒有帳號？立即註冊」→ 輸入名字、Email 和密碼</p>
+          </div>
+        </div>
+
+        <div style="background: #f5f7fa; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start;">
+          <span style="font-size: 28px; flex-shrink: 0;">✍️</span>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #2c2e2f; margin-bottom: 4px;">第二步：開始記帳</h3>
+            <p style="font-size: 13px; color: #6c7378; line-height: 1.6;">點底部 <strong>+</strong> 按鈕手動記帳，或點 <strong>AI</strong> 用說話方式記帳</p>
+          </div>
+        </div>
+
+        <div style="background: #f5f7fa; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start;">
+          <span style="font-size: 28px; flex-shrink: 0;">🤖</span>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #2c2e2f; margin-bottom: 4px;">AI 記帳怎麼說</h3>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="background: #e8f0fe; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #003087;">「午餐 RM12」→ 自動記錄飲食支出</div>
+              <div style="background: #e8f0fe; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #003087;">「油費 RM50」→ 自動記錄交通支出</div>
+              <div style="background: #e8f0fe; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #003087;">「薪水 NT$40000」→ 自動記錄收入</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #f5f7fa; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start;">
+          <span style="font-size: 28px; flex-shrink: 0;">📌</span>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #2c2e2f; margin-bottom: 4px;">固定開銷怎麼用</h3>
+            <p style="font-size: 13px; color: #6c7378; line-height: 1.6;">首頁點「固定開銷」→ 新增每月固定費用（保險 RM300、電費 RM200 等）→ 每月初勾選 → 一鍵記錄</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h2>開始使用扣扣</h2>
+    <p>免費・安全・夫妻共用<br/>現在就開始記錄每一筆支出</p>
+    <a href="https://chrishoe91.github.io/KKou/" class="cta-btn">📱 立即開啟 App</a>
+    <p style="margin-top: 16px; font-size: 12px; color: rgba(255,255,255,0.5);">需要邀請才能使用・資料存在雲端安全加密</p>
+  </div>
+
+  <footer>
+    <p>扣扣記帳 © 2026 · 僅供家庭內部使用</p>
+  </footer>
+
+</body>
+</html>
