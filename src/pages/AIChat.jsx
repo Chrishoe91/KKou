@@ -4,6 +4,7 @@ import { collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firest
 import { Send, Sparkles } from 'lucide-react'
 
 const SYSTEM_PROMPT = `你是一個記帳助手。用戶會用自然語言描述消費，你需要解析並回傳 JSON。
+重要：只回傳純 JSON 字串，絕對不要用 markdown code block（不要用 \`\`\`json 包裹），不要有任何其他文字。
 支援貨幣：MYR（馬幣，預設）、TWD（台幣）
 支出分類：飲食、交通、購物、娛樂、醫療、住房、教育、其他支出
 收入分類：薪資、獎金、副業、其他收入
@@ -99,7 +100,7 @@ export default function AIChat({ user }) {
       let parsed = null
       try {
         // Strip markdown code blocks if present
-        const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+        const clean = text.replace(/```(?:json)?/gi, '').trim()
         parsed = JSON.parse(clean)
       } catch {}
 
