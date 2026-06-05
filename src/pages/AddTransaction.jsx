@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase'
 import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, CreditCard, Banknote } from 'lucide-react'
 
 const DEFAULT_EXPENSE = [
   { name: '飲食', emoji: '🍽️' }, { name: '交通', emoji: '🚗' },
@@ -20,6 +20,7 @@ export default function AddTransaction({ user, setTab }) {
   const [currency, setCurrency] = useState('MYR')
   const [category, setCategory] = useState('')
   const [categoryEmoji, setCategoryEmoji] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [customCats, setCustomCats] = useState([])
@@ -37,6 +38,7 @@ export default function AddTransaction({ user, setTab }) {
     setLoading(true)
     await addDoc(collection(db, 'transactions'), {
       type, amount: parseFloat(amount), currency, category, categoryEmoji,
+      paymentMethod: type === 'expense' ? paymentMethod : null,
       note, userId: user.uid, userName: user.displayName || user.email,
       createdAt: serverTimestamp(),
     })
@@ -46,7 +48,6 @@ export default function AddTransaction({ user, setTab }) {
 
   return (
     <div style={{ background: '#f5f7fa', minHeight: '100vh' }}>
-      {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)', padding: '16px 20px 28px', paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => setTab('home')} style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
@@ -83,6 +84,29 @@ export default function AddTransaction({ user, setTab }) {
               </select>
             </div>
           </div>
+
+          {/* Payment Method (expense only) */}
+          {type === 'expense' && (
+            <div style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 10, display: 'block' }}>支付方式</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button type="button" onClick={() => setPaymentMethod('cash')}
+                  style={{ padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    background: paymentMethod === 'cash' ? '#e8f0fe' : '#f5f7fa',
+                    color: paymentMethod === 'cash' ? '#0070ba' : '#6c7378',
+                    border: paymentMethod === 'cash' ? '2px solid #0070ba' : '2px solid transparent' }}>
+                  <Banknote size={18} /> 現金
+                </button>
+                <button type="button" onClick={() => setPaymentMethod('card')}
+                  style={{ padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    background: paymentMethod === 'card' ? '#e8f0fe' : '#f5f7fa',
+                    color: paymentMethod === 'card' ? '#0070ba' : '#6c7378',
+                    border: paymentMethod === 'card' ? '2px solid #0070ba' : '2px solid transparent' }}>
+                  <CreditCard size={18} /> 刷卡
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Category */}
           <div style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>

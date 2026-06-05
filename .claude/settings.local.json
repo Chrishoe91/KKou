@@ -9,7 +9,8 @@
       "Read(//usr/local/bin/**)",
       "Bash(/usr/local/bin/node --version)",
       "Bash(ls /usr/local/ 2>/dev/null || echo \"no /usr/local\")",
-      "WebFetch(domain:cjpgpwlwi8qs.jp.larksuite.com)"
+      "WebFetch(domain:cjpgpwlwi8qs.jp.larksuite.com)",
+      "WebFetch(domain:api.github.com)"
     ]
   }
 }
