@@ -19,6 +19,7 @@ const SYSTEM_PROMPT = `你是一個記帳助手，幫用戶記錄收支。
 規則：
 1. 如果所有欄位都明確，回傳 confirmed:true
 2. 如果有不確定的欄位，回傳 confirmed:false，在 missing 陣列列出缺少的欄位，並在 question 提一個自然的問題（一次只問一個問題）
+3. 信用卡的選擇由前端處理，你不需要問哪張卡
 
 範例輸入與回傳：
 
@@ -47,14 +48,27 @@ const CATEGORY_EMOJIS = {
 const EXPENSE_CATS = ['飲食','交通','購物','娛樂','醫療','住房','教育','其他支出']
 const INCOME_CATS = ['薪資','獎金','副業','其他收入']
 
+function currSymbol(cur) {
+  return cur === 'TWD' ? 'NT$' : 'RM'
+}
+
+async function fetchRate(from, to) {
+  try {
+    const res = await fetch(`https://open.er-api.com/v6/latest/${from}`)
+    const data = await res.json()
+    return data.rates[to] || null
+  } catch { return null }
+}
+
 export default function AIChat({ user }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: `你好 ${user.displayName || ''}！\n\n直接說消費就能記帳，我會問你缺少的資訊：\n• 午餐 12\n• 海底撈 RM120 刷卡\n• 薪水 RM5000` }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [pendingTx, setPendingTx] = useState(null) // 等待補充資料的交易
+  const [pendingTx, setPendingTx] = useState(null)
   const [customCats, setCustomCats] = useState([])
+  const [creditCards, setCreditCards] = useState([])
   const bottomRef = useRef()
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -65,58 +79,130 @@ export default function AIChat({ user }) {
     })
   }, [])
 
+  useEffect(() => {
+    return onSnapshot(collection(db, 'creditCards'), snap => {
+      setCreditCards(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+  }, [])
+
   const allExpenseCats = [...EXPENSE_CATS, ...customCats.filter(c => c.type === 'expense').map(c => c.name)]
-  const allIncomeCats = [...INCOME_CATS, ...customCats.filter(c => c.type === 'income').map(c => c.name)]
+  const allIncomeCats  = [...INCOME_CATS,  ...customCats.filter(c => c.type === 'income').map(c => c.name)]
+
+  // Inject 'card' into missing if paymentMethod is card and we have cards
+  function injectCardMissing(parsed) {
+    if (parsed.paymentMethod === 'card' && creditCards.length > 0) {
+      const missing = [...(parsed.missing || [])]
+      if (!missing.includes('card')) missing.push('card')
+      return { ...parsed, missing, confirmed: false }
+    }
+    return parsed
+  }
 
   async function saveTransaction(tx) {
+    let recordAmount   = tx.amount
+    let recordCurrency = tx.currency
+    let originalAmount = null
+    let originalCurrency = null
+    let finalNote = tx.note || ''
+
+    // Cross-currency card: convert and record in card's currency
+    if (tx.paymentMethod === 'card' && tx.cardCurrency && tx.cardCurrency !== tx.currency) {
+      setMessages(prev => [...prev, { role: 'assistant', content: '💱 正在換算匯率...' }])
+      const rate = await fetchRate(tx.currency, tx.cardCurrency)
+      if (rate) {
+        originalAmount   = tx.amount
+        originalCurrency = tx.currency
+        recordAmount     = Math.round(tx.amount * rate)
+        recordCurrency   = tx.cardCurrency
+        // Note: just show original → converted, no rate number
+        const convNote = `${currSymbol(tx.currency)}${tx.amount} → ${currSymbol(tx.cardCurrency)}${recordAmount}`
+        finalNote = tx.note ? `${convNote}｜${tx.note}` : convNote
+      }
+    }
+
     await addDoc(collection(db, 'transactions'), {
       type: tx.type,
-      amount: tx.amount,
-      currency: tx.currency,
+      amount: recordAmount,
+      currency: recordCurrency,
       category: tx.category,
       categoryEmoji: CATEGORY_EMOJIS[tx.category] || customCats.find(c => c.name === tx.category)?.emoji || '💸',
       paymentMethod: tx.type === 'expense' ? (tx.paymentMethod || 'cash') : null,
-      note: tx.note,
+      ...(tx.type === 'expense' && tx.paymentMethod === 'card' && tx.cardId ? {
+        cardId: tx.cardId,
+        cardName: tx.cardName,
+        cardCurrency: tx.cardCurrency,
+        ...(originalAmount ? { originalAmount, originalCurrency } : {}),
+      } : {}),
+      note: finalNote,
       userId: user.uid,
       userName: user.displayName || user.email,
       createdAt: serverTimestamp(),
     })
-    const curr = tx.currency === 'TWD' ? `NT$${tx.amount}` : `RM ${tx.amount}`
-    const payStr = tx.type === 'expense' ? `・${tx.paymentMethod === 'card' ? '刷卡 💳' : '現金 💵'}` : ''
-    setMessages(prev => [...prev, {
-      role: 'assistant',
-      content: `✅ 已記錄！\n\n${CATEGORY_EMOJIS[tx.category] || ''} ${tx.category}${payStr}\n💵 ${curr}\n📝 ${tx.note}`
-    }])
+
+    const curr = recordCurrency === 'TWD' ? `NT$${recordAmount}` : `RM ${recordAmount}`
+    const payStr = tx.type === 'expense'
+      ? `・${tx.paymentMethod === 'card' ? `刷卡 💳${tx.cardName ? ` (${tx.cardName})` : ''}` : '現金 💵'}`
+      : ''
+    const origStr = originalAmount ? `\n💱 原始金額：${currSymbol(originalCurrency)}${originalAmount}` : ''
+
+    // Remove the "換算匯率" loading message if we added it
+    setMessages(prev => {
+      const filtered = prev.filter(m => m.content !== '💱 正在換算匯率...')
+      return [...filtered, {
+        role: 'assistant',
+        content: `✅ 已記錄！\n\n${CATEGORY_EMOJIS[tx.category] || ''} ${tx.category}${payStr}\n💵 ${curr}${origStr}\n📝 ${tx.note || tx.category}`
+      }]
+    })
     setPendingTx(null)
   }
 
-  // 用戶點選補充資訊後繼續處理
   async function fillMissing(field, value) {
     if (!pendingTx) return
-    const updated = { ...pendingTx, [field]: value }
 
-    setMessages(prev => [...prev, {
-      role: 'user',
-      content: field === 'currency' ? (value === 'MYR' ? '馬幣 RM' : '台幣 NT$')
-        : field === 'paymentMethod' ? (value === 'cash' ? '現金' : '刷卡')
-        : value
-    }])
+    let updated
+    if (field === 'card') {
+      // value is the card object
+      updated = { ...pendingTx, cardId: value.id, cardName: value.name, cardCurrency: value.currency }
+      setMessages(prev => [...prev, { role: 'user', content: `💳 ${value.name}` }])
+    } else {
+      updated = { ...pendingTx, [field]: value }
+      setMessages(prev => [...prev, {
+        role: 'user',
+        content: field === 'currency'      ? (value === 'MYR' ? '馬幣 RM' : '台幣 NT$')
+                 : field === 'paymentMethod' ? (value === 'cash' ? '現金' : '刷卡')
+                 : value
+      }])
+    }
 
-    const stillMissing = (updated.missing || []).filter(f => f !== field)
-    const nextMissing = stillMissing.filter(f => !updated[f] || updated[f] === null)
+    // Recalculate missing (remove filled field)
+    const stillMissing = (updated.missing || []).filter(f => {
+      if (f === field) return false
+      if (f === 'card' && updated.cardId) return false
+      if (f === 'currency' && updated.currency) return false
+      if (f === 'paymentMethod' && updated.paymentMethod) return false
+      if (f === 'category' && updated.category) return false
+      return true
+    })
 
-    if (nextMissing.length === 0) {
-      // 全部資料都有了，直接存
+    // If paymentMethod just became 'card', inject card missing if needed
+    let finalMissing = stillMissing
+    if (field === 'paymentMethod' && value === 'card' && creditCards.length > 0 && !finalMissing.includes('card')) {
+      finalMissing = [...finalMissing, 'card']
+    }
+
+    updated = { ...updated, missing: finalMissing }
+
+    if (finalMissing.length === 0) {
       await saveTransaction(updated)
     } else {
-      // 還有其他缺少的欄位，繼續問
-      const nextField = nextMissing[0]
-      const question = nextField === 'currency' ? '這是馬幣（RM）還是台幣（NT$）？'
-        : nextField === 'paymentMethod' ? '這筆是現金還是刷卡？'
-        : nextField === 'category' ? '歸到哪個分類？'
-        : '請提供更多資訊'
+      const nextField = finalMissing[0]
+      const question = nextField === 'currency'      ? '這是馬幣（RM）還是台幣（NT$）？'
+                      : nextField === 'paymentMethod' ? '這筆是現金還是刷卡？'
+                      : nextField === 'card'          ? '請選擇使用哪張信用卡：'
+                      : nextField === 'category'      ? '歸到哪個分類？'
+                      : '請提供更多資訊'
 
-      setPendingTx({ ...updated, missing: nextMissing })
+      setPendingTx(updated)
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: question,
@@ -172,14 +258,28 @@ export default function AIChat({ user }) {
       if (parsed?.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: parsed.error }])
       } else if (parsed?.confirmed === true) {
-        await saveTransaction(parsed)
+        // Even if AI says confirmed, inject card question if needed
+        const withCard = injectCardMissing(parsed)
+        if (withCard.missing?.length > 0) {
+          setPendingTx(withCard)
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '請選擇使用哪張信用卡：',
+            pendingField: 'card',
+            pendingType: withCard.type,
+            isPending: true
+          }])
+        } else {
+          await saveTransaction(parsed)
+        }
       } else if (parsed?.confirmed === false && parsed?.missing?.length > 0) {
-        setPendingTx(parsed)
+        const withCard = injectCardMissing(parsed)
+        setPendingTx(withCard)
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: parsed.question || '請確認以下資訊：',
-          pendingField: parsed.missing[0],
-          pendingType: parsed.type,
+          pendingField: withCard.missing[0],
+          pendingType: withCard.type,
           isPending: true
         }])
       } else {
@@ -219,6 +319,24 @@ export default function AIChat({ user }) {
             style={{ background: 'white', border: '1.5px solid #0070ba', color: '#0070ba', padding: '10px 18px', borderRadius: 25, fontSize: 14, fontWeight: 700, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <CreditCard size={16} /> 刷卡
           </button>
+        </div>
+      )
+    }
+
+    if (field === 'card') {
+      return (
+        <div style={{ marginLeft: 36, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {creditCards.map(card => (
+            <button key={card.id} onClick={() => fillMissing('card', card)}
+              style={{ background: 'white', border: '1.5px solid #0070ba', borderRadius: 14, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textAlign: 'left' }}>
+              {/* Card colour swatch */}
+              <div style={{ width: 36, height: 24, borderRadius: 6, background: card.color, flexShrink: 0, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }} />
+              <span style={{ fontWeight: 700, color: '#2c2e2f', flex: 1 }}>{card.name}</span>
+              <span style={{ fontSize: 12, color: '#6c7378', fontWeight: 600 }}>
+                {card.currency === 'TWD' ? '🇹🇼 台幣' : '🇲🇾 馬幣'}
+              </span>
+            </button>
+          ))}
         </div>
       )
     }
@@ -273,7 +391,6 @@ export default function AIChat({ user }) {
                 {m.content}
               </div>
             </div>
-            {/* Show action buttons for the LAST pending message only */}
             {m.isPending && i === messages.length - 1 && renderPendingUI(m)}
           </div>
         ))}

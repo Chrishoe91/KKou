@@ -111,7 +111,7 @@ export default function AddTransaction({ user, setTab }) {
     if (isCrossCurrency) {
       const originalStr  = `${currSymbol(currency)}${parseFloat(amount).toFixed(2)}`
       const convertedStr = `${currSymbol(selectedCard.currency)}${convertedAmount}`
-      const convNote = `${originalStr} → ${convertedStr}（匯率 ${rateInfo.rate.toFixed(4)}）`
+      const convNote = `${originalStr} → ${convertedStr}`
       finalNote = note ? `${convNote}｜${note}` : convNote
     }
 
@@ -246,10 +246,7 @@ export default function AddTransaction({ user, setTab }) {
                                 {currSymbol(currency)}{parseFloat(amount).toFixed(2)} → <span style={{ color: '#0070ba' }}>{currSymbol(selectedCard.currency)}{convertedAmount}</span>
                               </p>
                               <p style={{ fontSize: 11, color: '#6c7378', marginTop: 4 }}>
-                                今日匯率 1 {currency} = {rateInfo?.rate?.toFixed(4)} {selectedCard.currency}
-                              </p>
-                              <p style={{ fontSize: 11, color: '#6c7378', marginTop: 2 }}>
-                                記帳幣種：{currency}（實際帳單：{selectedCard.currency}，金額會自動記錄在備注）
+                                帳單幣種：{selectedCard.currency === 'TWD' ? '台幣 NT$' : '馬幣 RM'}（原始金額記錄於備注）
                               </p>
                             </div>
                           ) : (
