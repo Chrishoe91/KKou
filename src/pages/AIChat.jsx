@@ -107,7 +107,7 @@ export default function AIChat({ user }) {
 
     // Cross-currency card: convert and record in card's currency
     if (tx.paymentMethod === 'card' && tx.cardCurrency && tx.cardCurrency !== tx.currency) {
-      setMessages(prev => [...prev, { role: 'assistant', content: '💱 正在換算匯率...' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: '💱 換算中...' }])
       const rate = await fetchRate(tx.currency, tx.cardCurrency)
       if (rate) {
         originalAmount   = tx.amount

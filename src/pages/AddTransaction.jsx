@@ -237,7 +237,7 @@ export default function AddTransaction({ user, setTab }) {
                           {rateLoading ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0070ba' }}>
                               <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                              <span style={{ fontSize: 13 }}>查詢今日匯率中...</span>
+                              <span style={{ fontSize: 13 }}>換算中...</span>
                             </div>
                           ) : convertedAmount ? (
                             <div>
@@ -246,11 +246,11 @@ export default function AddTransaction({ user, setTab }) {
                                 {currSymbol(currency)}{parseFloat(amount).toFixed(2)} → <span style={{ color: '#0070ba' }}>{currSymbol(selectedCard.currency)}{convertedAmount}</span>
                               </p>
                               <p style={{ fontSize: 11, color: '#6c7378', marginTop: 4 }}>
-                                帳單幣種：{selectedCard.currency === 'TWD' ? '台幣 NT$' : '馬幣 RM'}（原始金額記錄於備注）
+                                帳單幣種：{selectedCard.currency === 'TWD' ? '台幣 NT$' : '馬幣 RM'}
                               </p>
                             </div>
                           ) : (
-                            <p style={{ fontSize: 13, color: '#a0aab0' }}>無法取得匯率，請確認網路連線</p>
+                            <p style={{ fontSize: 13, color: '#a0aab0' }}>無法取得換算結果，請確認網路連線</p>
                           )}
                         </div>
                       )}
