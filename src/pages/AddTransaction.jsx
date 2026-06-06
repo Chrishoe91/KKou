@@ -100,10 +100,16 @@ export default function AddTransaction({ user, setTab }) {
     if (!amount || !category) return
     setLoading(true)
 
-    // Build note: if cross-currency, prepend conversion info
+    const isCrossCurrency = paymentMethod === 'card' && selectedCard && convertedAmount && rateInfo && selectedCard.currency !== currency
+
+    // If cross-currency card: record in card's currency; store original spend separately
+    const recordAmount   = isCrossCurrency ? convertedAmount       : parseFloat(amount)
+    const recordCurrency = isCrossCurrency ? selectedCard.currency : currency
+
+    // Build note
     let finalNote = note
-    if (paymentMethod === 'card' && selectedCard && convertedAmount && rateInfo) {
-      const originalStr = `${currSymbol(currency)}${parseFloat(amount).toFixed(2)}`
+    if (isCrossCurrency) {
+      const originalStr  = `${currSymbol(currency)}${parseFloat(amount).toFixed(2)}`
       const convertedStr = `${currSymbol(selectedCard.currency)}${convertedAmount}`
       const convNote = `${originalStr} → ${convertedStr}（匯率 ${rateInfo.rate.toFixed(4)}）`
       finalNote = note ? `${convNote}｜${note}` : convNote
@@ -111,8 +117,8 @@ export default function AddTransaction({ user, setTab }) {
 
     await addDoc(collection(db, 'transactions'), {
       type,
-      amount: parseFloat(amount),
-      currency,
+      amount: recordAmount,
+      currency: recordCurrency,
       category,
       categoryEmoji,
       paymentMethod: type === 'expense' ? paymentMethod : null,
@@ -121,10 +127,10 @@ export default function AddTransaction({ user, setTab }) {
         cardId: selectedCard.id,
         cardName: selectedCard.name,
         cardCurrency: selectedCard.currency,
-        // If cross-currency, record the billed amount
-        ...(convertedAmount && rateInfo ? {
-          billedAmount: convertedAmount,
-          billedCurrency: selectedCard.currency,
+        // If cross-currency, store original spend for reference
+        ...(isCrossCurrency ? {
+          originalAmount: parseFloat(amount),
+          originalCurrency: currency,
           exchangeRate: rateInfo.rate,
         } : {}),
       } : {}),

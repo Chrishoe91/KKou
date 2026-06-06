@@ -13,9 +13,11 @@ const CATEGORY_ICONS = {
 export default function Stats() {
   const [transactions, setTransactions] = useState([])
   const [customCats, setCustomCats] = useState([])
+  const [creditCards, setCreditCards] = useState([])
   const [currency, setCurrency] = useState('MYR')
   const [monthOffset, setMonthOffset] = useState(0)
-  const [drillCat, setDrillCat] = useState(null) // category drill-down
+  const [drillCat, setDrillCat] = useState(null)
+  const [drillCard, setDrillCard] = useState(null) // card drill-down
 
   useEffect(() => {
     const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))
@@ -24,6 +26,10 @@ export default function Stats() {
 
   useEffect(() => {
     return onSnapshot(collection(db, 'categories'), snap => setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [])
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'creditCards'), snap => setCreditCards(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [])
 
   const now = new Date()
@@ -49,6 +55,23 @@ export default function Stats() {
   const catMap = {}
   expenses.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount })
   const catList = Object.entries(catMap).sort((a, b) => b[1] - a[1])
+
+  // Credit card breakdown (for current currency and month)
+  // Each card: total amount (in card's currency), list of transactions
+  const cardTxMap = {}
+  transactions.forEach(t => {
+    if (t.type !== 'expense' || t.paymentMethod !== 'card' || !t.cardId) return
+    const d = t.createdAt?.toDate?.() || new Date(t.createdAt)
+    if (d.getMonth() !== target.getMonth() || d.getFullYear() !== target.getFullYear()) return
+    if (t.currency !== currency) return // show card data matching selected currency view
+    if (!cardTxMap[t.cardId]) cardTxMap[t.cardId] = { total: 0, txs: [] }
+    cardTxMap[t.cardId].total += t.amount
+    cardTxMap[t.cardId].txs.push(t)
+  })
+  const cardList = Object.entries(cardTxMap)
+    .map(([cardId, data]) => ({ cardId, ...data, card: creditCards.find(c => c.id === cardId) }))
+    .filter(c => c.card)
+    .sort((a, b) => b.total - a.total)
 
   // Monthly trend (last 6 months)
   const trendMonths = Array.from({ length: 6 }, (_, i) => {
@@ -189,6 +212,67 @@ export default function Stats() {
             </div>
           </div>
         </div>
+
+        {/* Credit Card breakdown */}
+        {cardList.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#2c2e2f', marginBottom: 12, marginTop: 4 }}>
+              💳 信用卡消費 <span style={{ fontSize: 12, color: '#a0aab0', fontWeight: 400 }}>點擊查看明細</span>
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {cardList.map(({ cardId, total, txs, card }) => {
+                const isOpen = drillCard === cardId
+                return (
+                  <div key={cardId} style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    {/* Card header button */}
+                    <button onClick={() => setDrillCard(isOpen ? null : cardId)}
+                      style={{ width: '100%', background: 'none', padding: 0 }}>
+                      {/* Mini card banner */}
+                      <div style={{ background: card.color, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <CreditCard size={20} color="white" style={{ opacity: 0.9 }} />
+                        <span style={{ fontWeight: 700, color: 'white', fontSize: 15, flex: 1, textAlign: 'left' }}>{card.name}</span>
+                        <span style={{ fontWeight: 700, color: 'white', fontSize: 15 }}>{fmt(total)}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 18 }}>{isOpen ? '▲' : '▼'}</span>
+                      </div>
+                      <div style={{ padding: '8px 16px', display: 'flex', gap: 16, background: '#fafbfc' }}>
+                        <span style={{ fontSize: 12, color: '#6c7378' }}>{txs.length} 筆消費</span>
+                        <span style={{ fontSize: 12, color: '#6c7378' }}>{card.currency === 'TWD' ? '台幣帳單' : '馬幣帳單'}</span>
+                      </div>
+                    </button>
+
+                    {/* Drill-down transactions */}
+                    {isOpen && (
+                      <div style={{ borderTop: '1px solid #f0f4f8' }}>
+                        {txs.map(t => {
+                          const d = t.createdAt?.toDate?.() || new Date(t.createdAt)
+                          return (
+                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #f0f4f8' }}>
+                              <span style={{ fontSize: 22, flexShrink: 0 }}>{t.categoryEmoji || getIcon(t.category)}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: 14, fontWeight: 600, color: '#2c2e2f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {t.note || t.category}
+                                </p>
+                                <p style={{ fontSize: 11, color: '#a0aab0', marginTop: 2 }}>
+                                  {t.category} · {format(d, 'M/d')} · {t.userName}
+                                  {t.originalAmount ? ` · 原 ${t.originalCurrency === 'MYR' ? 'RM' : 'NT$'}${t.originalAmount.toFixed(2)}` : ''}
+                                </p>
+                              </div>
+                              <span style={{ fontWeight: 700, color: '#d0021b', fontSize: 14, flexShrink: 0 }}>-{fmt(t.amount)}</span>
+                            </div>
+                          )
+                        })}
+                        <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', background: '#fafbfc' }}>
+                          <span style={{ fontSize: 13, color: '#6c7378', fontWeight: 600 }}>本月合計</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#d0021b' }}>{fmt(total)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
 
         {/* Category breakdown */}
         {catList.length > 0 && (
