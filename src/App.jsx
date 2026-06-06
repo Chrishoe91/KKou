@@ -9,9 +9,10 @@ import Stats from './pages/Stats'
 import Settings from './pages/Settings'
 import Categories from './pages/Categories'
 import FixedExpenses from './pages/FixedExpenses'
+import CreditCards from './pages/CreditCards'
 import TabBar from './components/TabBar'
 
-const NO_TABBAR = ['categories', 'fixed']
+const NO_TABBAR = ['categories', 'fixed', 'creditcards']
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -42,7 +43,8 @@ export default function App() {
       {tab === 'stats'      && <Stats user={user} />}
       {tab === 'settings'   && <Settings user={user} setTab={setTab} />}
       {tab === 'categories' && <Categories setTab={setTab} />}
-      {tab === 'fixed'      && <FixedExpenses user={user} setTab={setTab} />}
+      {tab === 'fixed'        && <FixedExpenses user={user} setTab={setTab} />}
+      {tab === 'creditcards'  && <CreditCards setTab={setTab} />}
       {!NO_TABBAR.includes(tab) && <TabBar tab={tab} setTab={setTab} />}
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase'
 import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore'
-import { ArrowLeft, CreditCard, Banknote } from 'lucide-react'
+import { ArrowLeft, CreditCard, Banknote, RefreshCw } from 'lucide-react'
 
 const DEFAULT_EXPENSE = [
   { name: '飲食', emoji: '🍽️' }, { name: '交通', emoji: '🚗' },
@@ -14,6 +14,17 @@ const DEFAULT_INCOME = [
   { name: '副業', emoji: '💻' }, { name: '其他收入', emoji: '💰' },
 ]
 
+// Fetch today's exchange rate from open.er-api.com (free, no key needed)
+async function fetchRate(from, to) {
+  try {
+    const res = await fetch(`https://open.er-api.com/v6/latest/${from}`)
+    const data = await res.json()
+    return data.rates[to] || null
+  } catch {
+    return null
+  }
+}
+
 export default function AddTransaction({ user, setTab }) {
   const [type, setType] = useState('expense')
   const [amount, setAmount] = useState('')
@@ -25,21 +36,101 @@ export default function AddTransaction({ user, setTab }) {
   const [loading, setLoading] = useState(false)
   const [customCats, setCustomCats] = useState([])
 
+  // Credit cards
+  const [creditCards, setCreditCards] = useState([])
+  const [selectedCard, setSelectedCard] = useState(null)
+
+  // Cross-currency conversion
+  const [convertedAmount, setConvertedAmount] = useState(null)
+  const [rateInfo, setRateInfo] = useState(null) // { rate, from, to }
+  const [rateLoading, setRateLoading] = useState(false)
+
   useEffect(() => {
     const q = query(collection(db, 'categories'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [])
 
+  useEffect(() => {
+    const q = query(collection(db, 'creditCards'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => {
+      const cards = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setCreditCards(cards)
+      if (cards.length > 0 && !selectedCard) setSelectedCard(cards[0])
+    })
+  }, [])
+
+  // When card or amount or currency changes, recalculate conversion
+  useEffect(() => {
+    if (paymentMethod !== 'card' || !selectedCard || !amount) {
+      setConvertedAmount(null)
+      setRateInfo(null)
+      return
+    }
+    if (selectedCard.currency === currency) {
+      setConvertedAmount(null)
+      setRateInfo(null)
+      return
+    }
+    // Cross-currency: need conversion
+    const amtNum = parseFloat(amount)
+    if (isNaN(amtNum) || amtNum <= 0) return
+
+    let cancelled = false
+    setRateLoading(true)
+    fetchRate(currency, selectedCard.currency).then(rate => {
+      if (cancelled) return
+      setRateLoading(false)
+      if (rate) {
+        const converted = Math.round(amtNum * rate)
+        setConvertedAmount(converted)
+        setRateInfo({ rate, from: currency, to: selectedCard.currency })
+      }
+    })
+    return () => { cancelled = true }
+  }, [paymentMethod, selectedCard?.id, amount, currency])
+
   const allCats = [...(type === 'expense' ? DEFAULT_EXPENSE : DEFAULT_INCOME), ...customCats.filter(c => c.type === type)]
+
+  function currSymbol(cur) {
+    return cur === 'MYR' ? 'RM' : 'NT$'
+  }
 
   async function submit(e) {
     e.preventDefault()
     if (!amount || !category) return
     setLoading(true)
+
+    // Build note: if cross-currency, prepend conversion info
+    let finalNote = note
+    if (paymentMethod === 'card' && selectedCard && convertedAmount && rateInfo) {
+      const originalStr = `${currSymbol(currency)}${parseFloat(amount).toFixed(2)}`
+      const convertedStr = `${currSymbol(selectedCard.currency)}${convertedAmount}`
+      const convNote = `${originalStr} → ${convertedStr}（匯率 ${rateInfo.rate.toFixed(4)}）`
+      finalNote = note ? `${convNote}｜${note}` : convNote
+    }
+
     await addDoc(collection(db, 'transactions'), {
-      type, amount: parseFloat(amount), currency, category, categoryEmoji,
+      type,
+      amount: parseFloat(amount),
+      currency,
+      category,
+      categoryEmoji,
       paymentMethod: type === 'expense' ? paymentMethod : null,
-      note, userId: user.uid, userName: user.displayName || user.email,
+      // Card info (only when 刷卡)
+      ...(type === 'expense' && paymentMethod === 'card' && selectedCard ? {
+        cardId: selectedCard.id,
+        cardName: selectedCard.name,
+        cardCurrency: selectedCard.currency,
+        // If cross-currency, record the billed amount
+        ...(convertedAmount && rateInfo ? {
+          billedAmount: convertedAmount,
+          billedCurrency: selectedCard.currency,
+          exchangeRate: rateInfo.rate,
+        } : {}),
+      } : {}),
+      note: finalNote,
+      userId: user.uid,
+      userName: user.displayName || user.email,
       createdAt: serverTimestamp(),
     })
     setLoading(false)
@@ -89,15 +180,15 @@ export default function AddTransaction({ user, setTab }) {
           {type === 'expense' && (
             <div style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 10, display: 'block' }}>支付方式</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button type="button" onClick={() => setPaymentMethod('cash')}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: paymentMethod === 'card' ? 14 : 0 }}>
+                <button type="button" onClick={() => { setPaymentMethod('cash'); setSelectedCard(null) }}
                   style={{ padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     background: paymentMethod === 'cash' ? '#e8f0fe' : '#f5f7fa',
                     color: paymentMethod === 'cash' ? '#0070ba' : '#6c7378',
                     border: paymentMethod === 'cash' ? '2px solid #0070ba' : '2px solid transparent' }}>
                   <Banknote size={18} /> 現金
                 </button>
-                <button type="button" onClick={() => setPaymentMethod('card')}
+                <button type="button" onClick={() => { setPaymentMethod('card'); if (creditCards.length > 0) setSelectedCard(creditCards[0]) }}
                   style={{ padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     background: paymentMethod === 'card' ? '#e8f0fe' : '#f5f7fa',
                     color: paymentMethod === 'card' ? '#0070ba' : '#6c7378',
@@ -105,6 +196,65 @@ export default function AddTransaction({ user, setTab }) {
                   <CreditCard size={18} /> 刷卡
                 </button>
               </div>
+
+              {/* Card selector */}
+              {paymentMethod === 'card' && (
+                <div>
+                  {creditCards.length === 0 ? (
+                    <div style={{ background: '#fff8e1', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>⚠️</span>
+                      <p style={{ fontSize: 13, color: '#7c6000' }}>尚未新增信用卡，請先至「設定 → 信用卡管理」新增。</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', display: 'block', marginBottom: 8 }}>選擇信用卡</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {creditCards.map(card => (
+                          <button key={card.id} type="button" onClick={() => setSelectedCard(card)}
+                            style={{ padding: '12px 16px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12,
+                              background: selectedCard?.id === card.id ? '#e8f0fe' : '#f5f7fa',
+                              border: selectedCard?.id === card.id ? '2px solid #0070ba' : '2px solid transparent' }}>
+                            {/* Mini card swatch */}
+                            <div style={{ width: 36, height: 24, borderRadius: 6, background: card.color, flexShrink: 0, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }} />
+                            <span style={{ fontWeight: 700, color: '#2c2e2f', flex: 1, textAlign: 'left' }}>{card.name}</span>
+                            <span style={{ fontSize: 12, color: '#6c7378', fontWeight: 600 }}>
+                              {card.currency === 'TWD' ? '台幣' : '馬幣'}
+                            </span>
+                            {selectedCard?.id === card.id && <span style={{ color: '#0070ba', fontWeight: 700 }}>✓</span>}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Cross-currency conversion preview */}
+                      {selectedCard && selectedCard.currency !== currency && amount && parseFloat(amount) > 0 && (
+                        <div style={{ marginTop: 12, background: '#e8f4fd', borderRadius: 10, padding: '12px 14px' }}>
+                          {rateLoading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0070ba' }}>
+                              <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                              <span style={{ fontSize: 13 }}>查詢今日匯率中...</span>
+                            </div>
+                          ) : convertedAmount ? (
+                            <div>
+                              <p style={{ fontSize: 13, fontWeight: 700, color: '#0070ba', marginBottom: 4 }}>💱 跨幣種換算</p>
+                              <p style={{ fontSize: 15, fontWeight: 700, color: '#2c2e2f' }}>
+                                {currSymbol(currency)}{parseFloat(amount).toFixed(2)} → <span style={{ color: '#0070ba' }}>{currSymbol(selectedCard.currency)}{convertedAmount}</span>
+                              </p>
+                              <p style={{ fontSize: 11, color: '#6c7378', marginTop: 4 }}>
+                                今日匯率 1 {currency} = {rateInfo?.rate?.toFixed(4)} {selectedCard.currency}
+                              </p>
+                              <p style={{ fontSize: 11, color: '#6c7378', marginTop: 2 }}>
+                                記帳幣種：{currency}（實際帳單：{selectedCard.currency}，金額會自動記錄在備注）
+                              </p>
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: 13, color: '#a0aab0' }}>無法取得匯率，請確認網路連線</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -138,6 +288,10 @@ export default function AddTransaction({ user, setTab }) {
           </button>
         </form>
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { auth } from '../firebase'
 import { signOut, updateProfile } from 'firebase/auth'
-import { Key, LogOut, User, Tag, ChevronRight } from 'lucide-react'
+import { Key, LogOut, User, Tag, CreditCard, ChevronRight } from 'lucide-react'
 
 export default function Settings({ user, setTab }) {
   const [apiKey, setApiKey] = useState(localStorage.getItem('claude_api_key') || '')
@@ -58,6 +58,16 @@ export default function Settings({ user, setTab }) {
             <Tag size={18} color="#0070ba" />
           </div>
           <span style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#2c2e2f' }}>分類管理</span>
+          <ChevronRight size={18} color="#a0aab0" />
+        </button>
+
+        {/* Credit Cards */}
+        <button onClick={() => setTab('creditcards')}
+          style={{ width: '100%', background: 'white', padding: '16px 18px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#e8f0fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CreditCard size={18} color="#0070ba" />
+          </div>
+          <span style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#2c2e2f' }}>信用卡管理</span>
           <ChevronRight size={18} color="#a0aab0" />
         </button>
 
