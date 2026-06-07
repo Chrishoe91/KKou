@@ -104,7 +104,7 @@ export default function Stats() {
     <div style={{ background: '#f5f7fa', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #003087 0%, #0070ba 100%)', padding: '20px 20px 48px', paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 16 }}>統計報表</h1>
+        <h1 style={{ fontSize: 15, fontWeight: 700, color: 'white', marginBottom: 16, lineHeight: 1.4 }}>我尊重每一塊錢的去向。</h1>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => setMonthOffset(o => o - 1)} style={{ background: 'rgba(255,255,255,0.2)', color: 'white', width: 36, height: 36, borderRadius: '50%', fontSize: 18 }}>‹</button>
           <span style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>{monthLabel}</span>

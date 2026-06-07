@@ -158,7 +158,7 @@ export default function Dashboard({ user, setTab }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 2 }}>{monthLabel}概覽</p>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>扣扣 💰</h1>
+            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'white', lineHeight: 1.4, maxWidth: 200 }}>讓每一塊錢，都帶我靠近理想生活。</h1>
             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: 10 }}>今日支出</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: todayExpense.MYR > 0 || todayExpense.TWD > 0 ? '#fca5a5' : 'rgba(255,255,255,0.5)' }}>{todayLabel}</span>

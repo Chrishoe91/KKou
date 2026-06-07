@@ -150,7 +150,7 @@ export default function AddTransaction({ user, setTab }) {
           <button onClick={() => setTab('home')} style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
             <ArrowLeft size={20} />
           </button>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>新增記錄</h1>
+          <h1 style={{ fontSize: 15, fontWeight: 700, color: 'white', lineHeight: 1.4 }}>我讓金錢流向真正重要的地方。</h1>
         </div>
       </div>
 
