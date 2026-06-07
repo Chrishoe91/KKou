@@ -114,9 +114,12 @@ export default function AIChat({ user }) {
         originalCurrency = tx.currency
         recordAmount     = Math.round(tx.amount * rate)
         recordCurrency   = tx.cardCurrency
-        // Note: just show original → converted, no rate number
-        const convNote = `${currSymbol(tx.currency)}${tx.amount} → ${currSymbol(tx.cardCurrency)}${recordAmount}`
-        finalNote = tx.note ? `${convNote}｜${tx.note}` : convNote
+        // Note: "{original note} RM10" format
+        const origAmt = tx.amount
+        const origStr = tx.currency === 'MYR'
+          ? `RM ${Number.isInteger(origAmt) ? origAmt : origAmt.toFixed(2)}`
+          : `NT$${Number.isInteger(origAmt) ? origAmt : origAmt.toFixed(2)}`
+        finalNote = tx.note ? `${tx.note} ${origStr}` : origStr
       }
     }
 

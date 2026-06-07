@@ -109,10 +109,11 @@ export default function AddTransaction({ user, setTab }) {
     // Build note
     let finalNote = note
     if (isCrossCurrency) {
-      const originalStr  = `${currSymbol(currency)}${parseFloat(amount).toFixed(2)}`
-      const convertedStr = `${currSymbol(selectedCard.currency)}${convertedAmount}`
-      const convNote = `${originalStr} → ${convertedStr}`
-      finalNote = note ? `${convNote}｜${note}` : convNote
+      const origAmt = parseFloat(amount)
+      const origStr = currency === 'MYR'
+        ? `RM ${Number.isInteger(origAmt) ? origAmt : origAmt.toFixed(2)}`
+        : `NT$${Number.isInteger(origAmt) ? origAmt : origAmt.toFixed(2)}`
+      finalNote = note ? `${note} ${origStr}` : origStr
     }
 
     await addDoc(collection(db, 'transactions'), {
