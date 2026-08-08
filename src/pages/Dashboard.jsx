@@ -79,11 +79,11 @@ function EditModal({ t, customCats, onClose }) {
               <option value="TWD">NT$</option>
             </select>
           </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <Calendar size={14} /> 日期
             </label>
-            <input className="input-field" type="date" value={date} max={format(new Date(), 'yyyy-MM-dd')} onChange={e => setDate(e.target.value)} />
+            <input className="input-field" type="date" value={date} max={format(new Date(), 'yyyy-MM-dd')} onChange={e => setDate(e.target.value)} style={{ flex: 1 }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {allCats.map(cat => (
