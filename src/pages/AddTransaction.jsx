@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react'
 import { db } from '../firebase'
-import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore'
-import { ArrowLeft, CreditCard, Banknote, RefreshCw } from 'lucide-react'
+import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore'
+import { ArrowLeft, CreditCard, Banknote, RefreshCw, Calendar } from 'lucide-react'
+import { format } from 'date-fns'
+
+function todayStr() {
+  return format(new Date(), 'yyyy-MM-dd')
+}
+
+// Combine the chosen date with the current time-of-day so same-day entries still sort correctly
+function buildCreatedAt(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const now = new Date()
+  return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds())
+}
 
 const DEFAULT_EXPENSE = [
   { name: '飲食', emoji: '🍽️' }, { name: '交通', emoji: '🚗' },
@@ -33,6 +45,7 @@ export default function AddTransaction({ user, setTab }) {
   const [categoryEmoji, setCategoryEmoji] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [note, setNote] = useState('')
+  const [date, setDate] = useState(todayStr)
   const [loading, setLoading] = useState(false)
   const [customCats, setCustomCats] = useState([])
 
@@ -138,7 +151,7 @@ export default function AddTransaction({ user, setTab }) {
       note: finalNote,
       userId: user.uid,
       userName: user.displayName || user.email,
-      createdAt: serverTimestamp(),
+      createdAt: buildCreatedAt(date),
     })
     setLoading(false)
     setTab('home')
@@ -181,6 +194,14 @@ export default function AddTransaction({ user, setTab }) {
                 <option value="TWD">NT$</option>
               </select>
             </div>
+          </div>
+
+          {/* Date */}
+          <div style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Calendar size={14} /> 日期
+            </label>
+            <input className="input-field" type="date" value={date} max={todayStr()} onChange={e => setDate(e.target.value)} required />
           </div>
 
           {/* Payment Method (expense only) */}

@@ -3,7 +3,7 @@ import { db } from '../firebase'
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { format } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
-import { Trash2, Edit2, X, Check, Zap } from 'lucide-react'
+import { Trash2, Edit2, X, Check, Zap, Calendar } from 'lucide-react'
 
 const DEFAULT_CATEGORY_ICONS = {
   飲食: '🍽️', 交通: '🚗', 購物: '🛍️', 娛樂: '🎬',
@@ -37,16 +37,20 @@ function groupByDate(transactions) {
 }
 
 function EditModal({ t, customCats, onClose }) {
+  const origDate = t.createdAt?.toDate?.() || new Date(t.createdAt)
   const [amount, setAmount] = useState(String(t.amount))
   const [currency, setCurrency] = useState(t.currency)
   const [category, setCategory] = useState(t.category)
   const [categoryEmoji, setCategoryEmoji] = useState(t.categoryEmoji || DEFAULT_CATEGORY_ICONS[t.category] || '💸')
   const [note, setNote] = useState(t.note || '')
   const [type, setType] = useState(t.type)
+  const [date, setDate] = useState(format(origDate, 'yyyy-MM-dd'))
   const allCats = [...(type === 'expense' ? DEFAULT_EXPENSE : DEFAULT_INCOME), ...customCats.filter(c => c.type === type)]
 
   async function save() {
-    await updateDoc(doc(db, 'transactions', t.id), { amount: parseFloat(amount), currency, category, categoryEmoji, note, type })
+    const [y, m, d] = date.split('-').map(Number)
+    const createdAt = new Date(y, m - 1, d, origDate.getHours(), origDate.getMinutes(), origDate.getSeconds())
+    await updateDoc(doc(db, 'transactions', t.id), { amount: parseFloat(amount), currency, category, categoryEmoji, note, type, createdAt })
     onClose()
   }
 
@@ -74,6 +78,12 @@ function EditModal({ t, customCats, onClose }) {
               <option value="MYR">RM</option>
               <option value="TWD">NT$</option>
             </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Calendar size={14} /> 日期
+            </label>
+            <input className="input-field" type="date" value={date} max={format(new Date(), 'yyyy-MM-dd')} onChange={e => setDate(e.target.value)} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {allCats.map(cat => (
