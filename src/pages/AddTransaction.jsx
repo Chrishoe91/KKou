@@ -194,14 +194,12 @@ export default function AddTransaction({ user, setTab }) {
                 <option value="TWD">NT$</option>
               </select>
             </div>
-          </div>
-
-          {/* Date */}
-          <div style={{ background: 'white', borderRadius: 14, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Calendar size={14} /> 日期
-            </label>
-            <input className="input-field" type="date" value={date} max={todayStr()} onChange={e => setDate(e.target.value)} required />
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f0f4f8', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#6c7378', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <Calendar size={14} /> 日期
+              </label>
+              <input className="input-field" type="date" value={date} max={todayStr()} onChange={e => setDate(e.target.value)} required style={{ flex: 1 }} />
+            </div>
           </div>
 
           {/* Payment Method (expense only) */}
